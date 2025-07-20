@@ -5,7 +5,6 @@ import safetensors
 import torch
 import torch.nn as nn
 from huggingface_hub import hf_hub_download
-from tqdm import tqdm
 
 from zonos.autoencoder import DACAutoencoder
 from zonos.backbone import BACKBONES
@@ -269,7 +268,6 @@ class Zonos(nn.Module):
         stopping = torch.zeros(batch_size, dtype=torch.bool, device=device)
         max_steps = delayed_codes.shape[2] - offset
         remaining_steps = torch.full((batch_size,), max_steps, device=device)
-        progress = tqdm(total=max_steps, desc="Generating", disable=not progress_bar)
         cfg_scale = torch.tensor(cfg_scale)
 
         step = 0
@@ -300,7 +298,6 @@ class Zonos(nn.Module):
 
             remaining_steps -= 1
 
-            progress.update()
             step += 1
 
             if callback is not None and not callback(frame, step, max_steps):
