@@ -218,7 +218,7 @@ def generate_audio(
     func_end_time = time.perf_counter()
     total_duration_s = func_end_time - func_start_time
     # This will print the total time in seconds with two decimal places of precision.
-    print(f"Total 'generate_audio' execution time: {total_duration_s:.2f} seconds")
+    print(f"Total 'generate_audio' for {speaker_audio} execution time: {total_duration_s:.2f} seconds")
     return (sr_out, wav_out.squeeze().numpy()), seed
 
 
