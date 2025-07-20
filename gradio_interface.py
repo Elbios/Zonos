@@ -36,9 +36,23 @@ def load_model_if_needed(model_choice: str):
         CURRENT_MODEL = Zonos.from_pretrained(model_choice, device=device)
         CURRENT_MODEL.requires_grad_(False).eval()
         CURRENT_MODEL_TYPE = model_choice
+
+        # --- Optimization ---
+        logging.info("Compiling the autoencoder decoder for faster waveform generation...")
+        try:
+            # mode='reduce-overhead' is great for functions with low computation but high call overhead.
+            # fullgraph=True enforces that the entire function is compiled, which is ideal for performance.
+            CURRENT_MODEL.autoencoder.decode = torch.compile(
+                CURRENT_MODEL.autoencoder.decode, mode="reduce-overhead", fullgraph=True
+            )
+            logging.info("Decoder compiled successfully!")
+        except Exception as e:
+            # It's safe to continue without it if compilation fails for some reason
+            logging.info(f"Warning: Could not compile the autoencoder decoder. It will run unoptimized. Error: {e}")
+        # --- Optimization end ---
+
         logging.info(f"{model_choice} model loaded successfully!")
     return CURRENT_MODEL
-
 
 def update_ui(model_choice):
     """
