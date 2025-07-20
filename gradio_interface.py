@@ -219,17 +219,21 @@ def generate_audio(
         callback=update_progress,
     )
 
-    wav_out = selected_model.autoencoder.decode(codes).cpu().detach()
+    # =========================================================================
+    # Latency Optimization
+    # =========================================================================
+    wav_gpu_f32 = selected_model.autoencoder.decode(codes)
     sr_out = selected_model.autoencoder.sampling_rate
-    if wav_out.dim() == 2 and wav_out.size(0) > 1:
-        wav_out = wav_out[0:1, :]
-        
+    wav_gpu_i16 = (wav_gpu_f32.clamp(-1, 1) * 32767).to(torch.int16)
+    wav_np = wav_gpu_i16.cpu().squeeze().numpy()
+    # =========================================================================
+
     # --- Stop timing the entire function and print the result ---
     func_end_time = time.perf_counter()
     total_duration_s = func_end_time - func_start_time
     # This will print the total time in seconds with two decimal places of precision.
     logging.info(f"Total 'generate_audio' for {speaker_audio} execution time: {total_duration_s:.2f} seconds")
-    return (sr_out, wav_out.squeeze().numpy()), seed
+    return (sr_out, wav_np), seed
 
 
 def build_interface():
