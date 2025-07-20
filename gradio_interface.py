@@ -205,6 +205,7 @@ def generate_audio(
         cfg_scale=cfg_scale,
         batch_size=1,
         sampling_params=dict(top_p=top_p, top_k=top_k, min_p=min_p, linear=linear, conf=confidence, quad=quadratic),
+        progress_bar=False,
         callback=update_progress,
     )
 
