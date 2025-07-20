@@ -3,10 +3,20 @@ import torchaudio
 import gradio as gr
 import time
 from os import getenv
+import logging
+import sys
 
 from zonos.model import Zonos, DEFAULT_BACKBONE_CLS as ZonosBackbone
 from zonos.conditioning import make_cond_dict, supported_language_codes
 from zonos.utils import DEFAULT_DEVICE as device
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 CURRENT_MODEL_TYPE = None
 CURRENT_MODEL = None
@@ -21,11 +31,11 @@ def load_model_if_needed(model_choice: str):
         if CURRENT_MODEL is not None:
             del CURRENT_MODEL
             torch.cuda.empty_cache()
-        print(f"Loading {model_choice} model...")
+        logging.info(f"Loading {model_choice} model...")
         CURRENT_MODEL = Zonos.from_pretrained(model_choice, device=device)
         CURRENT_MODEL.requires_grad_(False).eval()
         CURRENT_MODEL_TYPE = model_choice
-        print(f"{model_choice} model loaded successfully!")
+        logging.info(f"{model_choice} model loaded successfully!")
     return CURRENT_MODEL
 
 
@@ -124,13 +134,13 @@ def generate_audio(
     func_start_time = time.perf_counter()
 
     # --- Time the model loading specifically ---
-    print("Checking/loading model...")
+    logging.info("Checking/loading model...")
     load_start_time = time.perf_counter()
     selected_model = load_model_if_needed(model_choice)
     load_end_time = time.perf_counter()
     load_duration_ms = (load_end_time - load_start_time) * 1000
     # This will print the loading time in milliseconds, even if it's ~0ms for a cached model.
-    print(f"Model loading took: {load_duration_ms:.2f} ms")
+    logging.info(f"Model loading took: {load_duration_ms:.2f} ms")
 
     speaker_noised_bool = bool(speaker_noised)
     fmax = float(fmax)
@@ -156,7 +166,7 @@ def generate_audio(
 
     if speaker_audio is not None and "speaker" not in unconditional_keys:
         if speaker_audio != SPEAKER_AUDIO_PATH:
-            print("Recomputed speaker embedding")
+            logging.info("Recomputed speaker embedding")
             wav, sr = torchaudio.load(speaker_audio)
             SPEAKER_EMBEDDING = selected_model.make_speaker_embedding(wav, sr)
             SPEAKER_EMBEDDING = SPEAKER_EMBEDDING.to(device, dtype=torch.bfloat16)
@@ -218,7 +228,7 @@ def generate_audio(
     func_end_time = time.perf_counter()
     total_duration_s = func_end_time - func_start_time
     # This will print the total time in seconds with two decimal places of precision.
-    print(f"Total 'generate_audio' for {speaker_audio} execution time: {total_duration_s:.2f} seconds")
+    logging.info(f"Total 'generate_audio' for {speaker_audio} execution time: {total_duration_s:.2f} seconds")
     return (sr_out, wav_out.squeeze().numpy()), seed
 
 
