@@ -1,6 +1,7 @@
 import torch
 import torchaudio
 import gradio as gr
+import time
 from os import getenv
 
 from zonos.model import Zonos, DEFAULT_BACKBONE_CLS as ZonosBackbone
@@ -117,8 +118,19 @@ def generate_audio(
     """
     Generates audio based on the provided UI parameters.
     We do NOT use language_id or ctc_loss even if the model has them.
+    Includes timing for model loading and total generation latency.
     """
+    # --- Start timing the entire function ---
+    func_start_time = time.perf_counter()
+
+    # --- Time the model loading specifically ---
+    print("Checking/loading model...")
+    load_start_time = time.perf_counter()
     selected_model = load_model_if_needed(model_choice)
+    load_end_time = time.perf_counter()
+    load_duration_ms = (load_end_time - load_start_time) * 1000
+    # This will print the loading time in milliseconds, even if it's ~0ms for a cached model.
+    print(f"Model loading took: {load_duration_ms:.2f} ms")
 
     speaker_noised_bool = bool(speaker_noised)
     fmax = float(fmax)
@@ -196,11 +208,22 @@ def generate_audio(
         callback=update_progress,
     )
 
-    wav_out = selected_model.autoencoder.decode(codes).cpu().detach()
+    # =========================================================================
+    # Latency Optimization
+    # =========================================================================
+    wav_gpu_f32 = selected_model.autoencoder.decode(codes)
     sr_out = selected_model.autoencoder.sampling_rate
-    if wav_out.dim() == 2 and wav_out.size(0) > 1:
-        wav_out = wav_out[0:1, :]
-    return (sr_out, wav_out.squeeze().numpy()), seed
+    wav_gpu_i16 = (wav_gpu_f32.clamp(-1, 1) * 32767).to(torch.int16)
+    wav_np = wav_gpu_i16.cpu().squeeze().numpy()
+    # =========================================================================
+
+    # --- Stop timing the entire function and print the result ---
+    func_end_time = time.perf_counter()
+    total_duration_s = func_end_time - func_start_time
+    # This will print the total time in seconds with two decimal places of precision.
+    print(f"Total 'generate_audio' execution time: {total_duration_s:.2f} seconds")
+
+    return (sr_out, wav_np), seed
 
 
 def build_interface():
